@@ -4,6 +4,11 @@ import numpy as np
 from gym import spaces
 from gym.utils import seeding
 import matplotlib.pyplot as plt
+from utee import selector
+import torch
+import torch.nn.functional as F
+from torch.autograd import Variable
+from torchvision import transforms
 
 
 class TurtleActions(IntEnum):
@@ -29,6 +34,12 @@ class MnistTurtleEnv(gym.Env):
         self.action_space = spaces.Discrete(self.nA)
         self.observation_space = spaces.Discrete(self.nS)
 
+        # mnist classifier
+        model_raw, _, _ = selector.select('mnist', cuda=False)
+        self.mnist_model = model_raw
+        self.preprocess = transforms.Compose([
+                               transforms.Normalize((0.1307,), (0.3081,))
+        ])
         self.seed()
         self.reset()
 
@@ -100,6 +111,22 @@ class MnistTurtleEnv(gym.Env):
             before training models. We already have values 0 or 1 for cell color
         '''
         return np.array(self.grid, dtype=np.float)
+
+    def calc_reward(self,digit=0):
+        '''
+        Calculate reward from MNIST image for a given digit
+        :return:
+        '''
+        bitmap = self.get_grid_bitmap()
+        bitmap = self.preprocess(torch.from_numpy(bitmap[np.newaxis,:])) # 1x28x28
+        data = Variable(bitmap, require_grad=False)
+        data = data.unsqueeze(0) # 1x1x28x28
+        logits = self.mnist_model(data)
+        prob = F.softmax(logits,dim=1)
+        return prob[0][digit]
+
+
+
 
     def render(self, mode='human'):
         if mode == 'human':
