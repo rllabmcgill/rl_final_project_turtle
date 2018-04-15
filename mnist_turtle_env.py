@@ -24,7 +24,8 @@ class MnistTurtleEnv(gym.Env):
     }
     GRID_SIZE = 28
 
-    def __init__(self):
+    def __init__(self, digit):
+        self.digit = digit
         self.nD = 8  # number of directions
         # cell state 0: blank,  1: drawn black
         self.grid = np.asarray([[0]*self.GRID_SIZE]*self.GRID_SIZE, dtype=int)
@@ -47,10 +48,20 @@ class MnistTurtleEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def reset(self):
-        # Start at bottom left, direction at 45 degrees, cell blank
-        self.state = self._encode(self.GRID_SIZE-1, 0, 1, 0)
+    def set_state(row=None, col=None, direction=None, color=None):
+        row = row or self.row
+        col = col or self.col
+        direction = direction or self.direction
+        color = color or self.grid[row, col]
+        self.row, self.col, self.direction, self.grid[row][col] = row, col, direction, color
+        self.state = self._encode(row, col, direction, color)
         return self.state
+
+    def reset(self):
+        return self.set_state(np.random.randint(0, self.GRID_SIZE),
+                       np.random.randint(0, self.GRID_SIZE),
+                       np.random.randint(0, 8),
+                       0)
 
     def _get_next_cell(self, row, col, dirn):
         dr = [0, -1, -1, -1, 0, 1, 1, 1]
@@ -65,29 +76,19 @@ class MnistTurtleEnv(gym.Env):
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
-        row, col, direction, color = self._decode(self.state)
         if action == TurtleActions.FD0:
-            row_next, col_next = self._get_next_cell(row, col, direction)
-            color_next = self.grid[row_next, col_next]
-            dir_next = direction
+            row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
+            self.set_state(row=row_next, col=col_next)
         elif action == TurtleActions.FD1:
-            row_next, col_next = self._get_next_cell(row, col, direction)
-            color_next = 1
-            dir_next = direction
-            self.grid[row_next, col_next] = 1
+            row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
+            self.set_state(row=row_next, col=col_next, color=1)
         elif action == TurtleActions.LT1:
-            row_next, col_next = row, col
-            color_next = color
-            dir_next = (direction - 1 + self.nD) % self.nD
+            self.set_state(direction=(self.direction - 1 + self.nD) % self.nD)
         elif action == TurtleActions.RT1:
-            row_next, col_next = row, col
-            color_next = color
-            dir_next = (direction + 1) % self.nD
+            self.set_state(direction=(self.direction + 1) % self.nD)
 
-        state_next = self._encode(row_next, col_next, dir_next, color_next)
-        reward = None
-        done = False
-        return state_next, reward, done, {}
+        reward, done = self.calc_reward()
+        return self.state, reward, done, {}
 
     def _encode(self, row, col, direction, color):
         s = row
@@ -112,10 +113,10 @@ class MnistTurtleEnv(gym.Env):
         '''
         return np.array(self.grid, dtype=np.float)
 
-    def calc_reward(self,digit=0):
+    def calc_reward(self):
         '''
         Calculate reward from MNIST image for a given digit
-        :return:
+        :return: Reward, done
         '''
         bitmap = self.get_grid_bitmap()
         bitmap = self.preprocess(torch.from_numpy(bitmap[np.newaxis,:])) # 1x28x28
@@ -123,9 +124,13 @@ class MnistTurtleEnv(gym.Env):
         data = data.unsqueeze(0) # 1x1x28x28
         logits = self.mnist_model(data)
         prob = F.softmax(logits,dim=1)
-        return prob[0][digit]
-
-
+        p_digit = prob[0][self.digit]
+        if p_digit > 0.9:
+            return 1.0, True
+        elif any(prob[0][d]>0.9 for d in range(10)):
+            return 0.0, True
+        else:
+            return 0.0, False
 
 
     def render(self, mode='human'):
