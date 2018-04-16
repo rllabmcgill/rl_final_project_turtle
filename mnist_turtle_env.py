@@ -34,6 +34,7 @@ class MnistTurtleEnv(gym.Env):
         self.nS = self.GRID_SIZE * self.GRID_SIZE * self.nD * 2
         self.action_space = spaces.Discrete(self.nA)
         self.observation_space = spaces.Discrete(self.nS)
+        self.row = self.col = self.direction = 0
 
         # mnist classifier
         model_raw, _, _ = selector.select('mnist', cuda=False)
@@ -48,7 +49,7 @@ class MnistTurtleEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def set_state(row=None, col=None, direction=None, color=None):
+    def set_state(self, row=None, col=None, direction=None, color=None):
         row = row or self.row
         col = col or self.col
         direction = direction or self.direction
@@ -58,10 +59,13 @@ class MnistTurtleEnv(gym.Env):
         return self.state
 
     def reset(self):
-        return self.set_state(np.random.randint(0, self.GRID_SIZE),
-                       np.random.randint(0, self.GRID_SIZE),
-                       np.random.randint(0, 8),
-                       0)
+        return self.set_state(row=np.random.randint(0, self.GRID_SIZE),
+                              col=np.random.randint(0, self.GRID_SIZE),
+                              direction=np.random.randint(0, 8),
+                              color=0)
+
+    @property
+    def turtle_pos(self): return self.row, self.col, self.direction
 
     def _get_next_cell(self, row, col, dirn):
         dr = [0, -1, -1, -1, 0, 1, 1, 1]
@@ -82,9 +86,9 @@ class MnistTurtleEnv(gym.Env):
         elif action == TurtleActions.FD1:
             row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
             self.set_state(row=row_next, col=col_next, color=1)
-        elif action == TurtleActions.LT1:
-            self.set_state(direction=(self.direction - 1 + self.nD) % self.nD)
         elif action == TurtleActions.RT1:
+            self.set_state(direction=(self.direction - 1 + self.nD) % self.nD)
+        elif action == TurtleActions.LT1:
             self.set_state(direction=(self.direction + 1) % self.nD)
 
         reward, done = self.calc_reward()
@@ -119,19 +123,19 @@ class MnistTurtleEnv(gym.Env):
         :return: Reward, done
         '''
         bitmap = self.get_grid_bitmap()
-        bitmap = self.preprocess(torch.from_numpy(bitmap[np.newaxis,:])) # 1x28x28
-        data = Variable(bitmap, require_grad=False)
+        bitmap = self.preprocess(torch.from_numpy(bitmap[np.newaxis,:]).float()) # 1x28x28
+        data = Variable(bitmap, requires_grad=False)
         data = data.unsqueeze(0) # 1x1x28x28
         logits = self.mnist_model(data)
         prob = F.softmax(logits,dim=1)
-        p_digit = prob[0][self.digit]
+        p_digit = prob[0][self.digit].data[0]
+
         if p_digit > 0.9:
             return 1.0, True
-        elif any(prob[0][d]>0.9 for d in range(10)):
+        elif any(prob[0][d].data[0] > 0.9 for d in range(10)):
             return 0.0, True
         else:
             return 0.0, False
-
 
     def render(self, mode='human'):
         if mode == 'human':
