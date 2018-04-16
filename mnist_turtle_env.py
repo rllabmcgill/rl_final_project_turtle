@@ -130,12 +130,8 @@ class MnistTurtleEnv(gym.Env):
         prob = F.softmax(logits,dim=1)
         p_digit = prob[0][self.digit].data[0]
 
-        if p_digit > 0.9:
-            return 1.0, True
-        elif any(prob[0][d].data[0] > 0.9 for d in range(10)):
-            return 0.0, True
-        else:
-            return 0.0, False
+        done = any(prob[0][d].data[0] > 0.95 for d in range(10))
+        return p_digit, done
 
     def render(self, mode='human'):
         if mode == 'human':
