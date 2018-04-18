@@ -56,14 +56,14 @@ class MnistTurtleEnv(gym.Env):
         direction = direction or self.direction
         color = color or self.grid[row, col]
         self.row, self.col, self.direction, self.grid[row][col] = row, col, direction, color
-        self.state = self._encode(row, col, direction, color)
-        return self.state
+        self.turtle_state = self._encode(row, col, direction, color)
 
     def reset(self):
-        return self.set_state(row=np.random.randint(0, self.GRID_SIZE),
-                              col=np.random.randint(0, self.GRID_SIZE),
-                              direction=np.random.randint(0, 8),
-                              color=0)
+        self.set_state(row=np.random.randint(0, self.GRID_SIZE),
+                       col=np.random.randint(0, self.GRID_SIZE),
+                       direction=np.random.randint(0, 8),
+                       color=0)
+        return self.get_grid_bitmap()
 
     @property
     def turtle_pos(self): return self.row, self.col, self.direction
@@ -98,7 +98,7 @@ class MnistTurtleEnv(gym.Env):
             done = True
 
         #reward, done = self.calc_reward()
-        return self.get_grid_bitmap(), reward, done, {'grid_state': self.state}
+        return self.get_grid_bitmap(), reward, done, {'turtle_state': self.turtle_state}
 
     def _encode(self, row, col, direction, color):
         s = row
