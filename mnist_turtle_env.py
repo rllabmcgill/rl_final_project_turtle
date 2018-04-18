@@ -16,6 +16,7 @@ class TurtleActions(IntEnum):
     FD1 = 1
     LT1 = 2
     RT1 = 3
+    STOP = 4
 
 
 class MnistTurtleEnv(gym.Env):
@@ -80,6 +81,8 @@ class MnistTurtleEnv(gym.Env):
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
+        reward = 0.0
+        done = False
         if action == TurtleActions.FD0:
             row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
             self.set_state(row=row_next, col=col_next)
@@ -90,8 +93,11 @@ class MnistTurtleEnv(gym.Env):
             self.set_state(direction=(self.direction - 1 + self.nD) % self.nD)
         elif action == TurtleActions.LT1:
             self.set_state(direction=(self.direction + 1) % self.nD)
+        elif action == TurtleActions.STOP:
+            reward, _ = self.calc_reward()
+            done = True
 
-        reward, done = self.calc_reward()
+        #reward, done = self.calc_reward()
         return self.state, reward, done, {}
 
     def _encode(self, row, col, direction, color):
