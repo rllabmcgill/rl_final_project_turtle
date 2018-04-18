@@ -98,7 +98,7 @@ class MnistTurtleEnv(gym.Env):
             done = True
 
         #reward, done = self.calc_reward()
-        return self.state, reward, done, {}
+        return self.get_grid_bitmap(), reward, done, {'grid_state': self.state}
 
     def _encode(self, row, col, direction, color):
         s = row
