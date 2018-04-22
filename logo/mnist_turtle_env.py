@@ -51,11 +51,14 @@ class MnistTurtleEnv(gym.Env):
         return [seed]
 
     def set_state(self, row=None, col=None, direction=None, color=None):
-        row = row or self.row
-        col = col or self.col
-        direction = direction or self.direction
-        color = color or self.grid[row, col]
-        self.row, self.col, self.direction, self.grid[row][col] = row, col, direction, color
+        if row is not None:
+            self.row = row
+        if col is not None:
+            self.col = col
+        if direction is not None:
+            self.direction = direction
+        if color is not None:
+            self.grid[self.row][self.col] = color
         self.turtle_state = self._encode(row, col, direction, color)
 
     def reset(self):
