@@ -63,11 +63,11 @@ class MnistTurtleEnv(gym.Env):
                                          self.grid[self.row][self.col])
 
     def reset(self):
-        self.set_state(row=np.random.randint(0, self.GRID_SIZE),
-                       col=np.random.randint(0, self.GRID_SIZE),
-                       direction=np.random.randint(0, 8),
-                       color=0)
         self.grid.fill(0)
+        self.set_state(row=5, #np.random.randint(0, self.GRID_SIZE),
+                       col=5, #np.random.randint(0, self.GRID_SIZE),
+                       direction=0, #np.random.randint(0, 8),
+                       color=0)
         return np.expand_dims(self.get_grid_bitmap(),axis=2)
 
     @property
