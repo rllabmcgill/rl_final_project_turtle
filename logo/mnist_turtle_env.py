@@ -59,7 +59,8 @@ class MnistTurtleEnv(gym.Env):
             self.direction = direction
         if color is not None:
             self.grid[self.row][self.col] = color
-        self.turtle_state = self._encode(row, col, direction, color)
+        self.turtle_state = self._encode(self.row, self.col, self.direction,
+                                         self.grid[self.row][self.col])
 
     def reset(self):
         self.set_state(row=np.random.randint(0, self.GRID_SIZE),
