@@ -63,6 +63,7 @@ class MnistTurtleEnv(gym.Env):
                        col=np.random.randint(0, self.GRID_SIZE),
                        direction=np.random.randint(0, 8),
                        color=0)
+        self.grid.fill(0)
         return np.expand_dims(self.get_grid_bitmap(),axis=2)
 
     @property
@@ -123,7 +124,7 @@ class MnistTurtleEnv(gym.Env):
         '''
         return np.array(self.grid, dtype=np.float)
 
-    def calc_reward(self):
+    def calc_reward(self, reward_threshold=0.9):
         '''
         Calculate reward from MNIST image for a given digit
         :return: Reward, done
@@ -135,6 +136,8 @@ class MnistTurtleEnv(gym.Env):
         logits = self.mnist_model(data)
         prob = F.softmax(logits,dim=1)
         p_digit = prob[0][self.digit].data[0]
+        if p_digit < reward_threshold:
+            p_digit = -1
 
         done = any(prob[0][d].data[0] > 0.95 for d in range(10))
         return p_digit, done
