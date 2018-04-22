@@ -34,7 +34,7 @@ class MnistTurtleEnv(gym.Env):
         # row, col, direction, cell color(0 or 1)
         self.nS = self.GRID_SIZE * self.GRID_SIZE * self.nD * 2
         self.action_space = spaces.Discrete(self.nA)
-        self.observation_space = spaces.Discrete(self.nS)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.GRID_SIZE, self.GRID_SIZE, 1))
         self.row = self.col = self.direction = 0
 
         # mnist classifier
@@ -63,7 +63,7 @@ class MnistTurtleEnv(gym.Env):
                        col=np.random.randint(0, self.GRID_SIZE),
                        direction=np.random.randint(0, 8),
                        color=0)
-        return self.get_grid_bitmap()
+        return np.expand_dims(self.get_grid_bitmap(),axis=2)
 
     @property
     def turtle_pos(self): return self.row, self.col, self.direction
@@ -98,7 +98,7 @@ class MnistTurtleEnv(gym.Env):
             done = True
 
         #reward, done = self.calc_reward()
-        return self.get_grid_bitmap(), reward, done, {'turtle_state': self.turtle_state}
+        return np.expand_dims(self.get_grid_bitmap(),axis=2), reward, done, {'turtle_state': self.turtle_state}
 
     def _encode(self, row, col, direction, color):
         s = row
@@ -139,7 +139,8 @@ class MnistTurtleEnv(gym.Env):
         done = any(prob[0][d].data[0] > 0.95 for d in range(10))
         return p_digit, done
 
-    def render(self, mode='human'):
-        if mode == 'human':
+    def render(self, mode='human',close=False):
+        print('Close: ', close)
+        if mode == 'human' and not close:
             plt.imshow(self.grid, cmap='gray_r')
             plt.show()
