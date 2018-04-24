@@ -21,9 +21,10 @@ all_connections = {
     3: {((6,6),(6,11)),  # Top lines
         ((6,11),(6,16)),
         ((6,16),(6,21)),
-        ((6,21),(11,21)),  # Right lines
-        ((11,21),(16,21)),
-        ((16,21),(21,21)),
+        ((6,21),(10,21)),  # Right lines
+        ((10,21),(13,21)),
+        ((13,21),(17,21)),
+        ((17,21),(21,21)),
         ((21,21),(21,16)),  # Bottom lines
         ((21,16),(21,11)),
         ((21,11),(21,6)),
@@ -70,7 +71,10 @@ class ConnectDotsEnv(gym.Env):
         if direction is not None:
             self.direction = direction
         if color is not None:
-            self.grid[self.row][self.col] = color
+            if (self.row, self.col) in self.target_dots:
+                color = 1.0
+            if self.grid[self.row][self.col] < 0.9:
+                self.grid[self.row][self.col] = color
 
     def reset(self):
         self.grid.fill(0)
@@ -78,7 +82,7 @@ class ConnectDotsEnv(gym.Env):
         for r, c in self.target_dots:
             self.grid[r, c] = 1.0
 
-        start = random.sample(self.target_dots)[0]
+        start = random.sample(self.target_dots, 1)[0]
         self.set_state(row=start[0],
                        col=start[1],
                        direction=np.random.randint(0, self.nD),
@@ -113,17 +117,20 @@ class ConnectDotsEnv(gym.Env):
             self.set_state(direction=(self.direction + 1) % self.nD)
 
         reward, done = self.calc_reward()
-        return np.expand_dims(self.get_grid_bitmap(),axis=2), reward, done, {'turtle_state': self.turtle_state}
+        return np.expand_dims(self.get_grid_bitmap(),axis=2), reward, done, {}
 
     def get_grid_bitmap(self):
         return np.array(self.grid, dtype=np.float)
 
     def is_connected(self, p1, p2):
+        tpos = (self.row, self.col)
+        if tpos != p1 and tpos != p2:
+            return False
         p1, p2 = (p1, p2) if (p1 < p2) else (p2, p1)
         if p1[0] == p2[0]:
-            return all((0.0 < self.grid[p1[0], c] < 1.0) for c in range(p1[1]+1, p2[1]))
+            return all((0.1 < self.grid[p1[0], c] < 0.9) for c in range(p1[1]+1, p2[1]))
         if p1[1] == p2[1]:
-            return all((0.0 < self.grid[r, p1[1]] < 1.0) for r in range(p1[0]+1, p2[0]))
+            return all((0.1 < self.grid[r, p1[1]] < 0.9) for r in range(p1[0]+1, p2[0]))
 
     def paint_black(self, p1, p2):
         p1, p2 = (p1, p2) if (p1 < p2) else (p2, p1)
