@@ -49,6 +49,7 @@ class Colors:
     Blue = [0.0, 0.0, 1.0]
     Yellow = [1.0, 1.0, 0.0]
     Gray = [0.5, 0.5, 0.5]
+    Cyan = [0.0, 1.0, 1.0]
 
 
 class ConnectDotsEnv(gym.Env):
@@ -103,7 +104,7 @@ class ConnectDotsEnv(gym.Env):
         elif marker in (Marker.Target, Marker.Connected):
             color = Colors.Black
         elif marker == Marker.Drawn:
-            color = Colors.Gray
+            color = Colors.Cyan
         self.rgb_grid[r, c] = color
 
     def reset(self):
