@@ -32,6 +32,25 @@ all_connections = {
     }
 }
 
+
+class Marker(IntEnum):
+    Empty = 0
+    Target = 1
+    Drawn = 2
+    Connected = 3
+
+
+class Colors:
+    Black = 0.0
+    White = 1.0
+    Green = [0.0, 1.0, 0.0]
+    Red = [1.0, 0.0, 0.0]
+    Blue = [0.0, 0.0, 1.0]
+    Yellow = [1.0, 1.0, 0.0]
+    Gray = [0.5, 0.5, 0.5]
+    Cyan = [0.0, 1.0, 1.0]
+
+
 class ConnectDotsEnv(gym.Env):
     metadata = {
         'render.modes': ['human']
@@ -46,8 +65,8 @@ class ConnectDotsEnv(gym.Env):
             self.target_dots.add(p1)
             self.target_dots.add(p2)
         self.nD = 4  # number of directions
-        # cell state 0: blank,  1: target dots, 0.5 turtle drawing
-        self.grid = np.asarray([[0]*self.GRID_SIZE]*self.GRID_SIZE, dtype=np.float)
+        self.grid = np.zeros((self.GRID_SIZE, self.GRID_SIZE), dtype=np.int)
+        self.rgb_grid = np.ones((self.GRID_SIZE, self.GRID_SIZE, 3), dtype=np.float)
         self.nA = len(TurtleActions)
 
         self.nS = self.GRID_SIZE * self.GRID_SIZE
@@ -58,6 +77,7 @@ class ConnectDotsEnv(gym.Env):
         self.min_steps = min_steps
         self.step_count = 0
         self.rank = rank
+        self.turtle_colors = [Colors.Blue, Colors.Green, Colors.Yellow, Colors.Red]
         self.seed()
         self.reset()
 
@@ -65,32 +85,43 @@ class ConnectDotsEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def set_state(self, row=None, col=None, direction=None, color=None):
-        if row is not None:
-            self.row = row
-        if col is not None:
-            self.col = col
+    def set_state(self, pos=None, direction=None, draw=None):
+        if pos is not None:
+            self.update_rgb_grid()
+            self.row, self.col = pos
         if direction is not None:
             self.direction = direction
-        if color is not None:
-            if (self.row, self.col) in self.target_dots:
-                color = 1.0
-            if self.grid[self.row][self.col] < 0.9:
-                self.grid[self.row][self.col] = color
+        if draw is True:
+            if self.grid[self.row, self.col] == Marker.Empty:
+                self.grid[self.row, self.col] = Marker.Drawn
+        self.rgb_grid[self.row, self.col] = self.turtle_colors[self.direction]
+
+    def update_rgb_grid(self):
+        #for d in range(self.nD):
+        #    r, c = self._get_next_cell(self.row, self.col, d)
+        r, c = self.row, self.col
+        marker = self.grid[r, c]
+        if marker == Marker.Empty:
+            color = Colors.White
+        elif marker in (Marker.Target, Marker.Connected):
+            color = Colors.Black
+        elif marker == Marker.Drawn:
+            color = Colors.Cyan
+        self.rgb_grid[r, c] = color
 
     def reset(self):
-        self.grid.fill(0)
+        self.grid.fill(Marker.Empty)
+        self.rgb_grid.fill(Colors.White)
         self.total_connected = 0
         for r, c in self.target_dots:
-            self.grid[r, c] = 1.0
+            self.grid[r, c] = Marker.Target
+            self.rgb_grid[r, c] = Colors.Black
 
-        start = random.sample(self.target_dots, 1)[0]
-        self.set_state(row=start[0],
-                       col=start[1],
-                       direction=np.random.randint(0, self.nD),
-                      )
+        self.set_state(pos=random.sample(self.target_dots, 1)[0],
+                       direction=np.random.randint(0, self.nD))
         self.step_count = 0
         return np.expand_dims(self.get_grid_bitmap(),axis=2)
+
 
     @property
     def turtle_pos(self): return self.row, self.col, self.direction
@@ -108,12 +139,12 @@ class ConnectDotsEnv(gym.Env):
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         self.step_count += 1
-        #if action == TurtleActions.FD0:
-        #    row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
-        #    self.set_state(row=row_next, col=col_next)
-        if action == TurtleActions.FD1:
+        if action == TurtleActions.FD0:
             row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
-            self.set_state(row=row_next, col=col_next, color=0.5)
+            self.set_state(pos=(row_next,col_next))
+        elif action == TurtleActions.FD1:
+            row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
+            self.set_state(pos=(row_next,col_next), draw=True)
         elif action == TurtleActions.RT1:
             self.set_state(direction=(self.direction - 1 + self.nD) % self.nD)
         elif action == TurtleActions.LT1:
@@ -125,7 +156,7 @@ class ConnectDotsEnv(gym.Env):
         return np.expand_dims(self.get_grid_bitmap(),axis=2), reward, done, {}
 
     def get_grid_bitmap(self):
-        return np.array(self.grid, dtype=np.float)
+        return np.array(self.rgb_grid, dtype=np.float)
 
     def is_connected(self, p1, p2):
         tpos = (self.row, self.col)
@@ -133,26 +164,28 @@ class ConnectDotsEnv(gym.Env):
             return False
         p1, p2 = (p1, p2) if (p1 < p2) else (p2, p1)
         if p1[0] == p2[0]:
-            return all((0.1 < self.grid[p1[0], c] < 0.9) for c in range(p1[1]+1, p2[1]))
+            return all((self.grid[p1[0], c] == Marker.Drawn) for c in range(p1[1]+1, p2[1]))
         if p1[1] == p2[1]:
-            return all((0.1 < self.grid[r, p1[1]] < 0.9) for r in range(p1[0]+1, p2[0]))
+            return all((self.grid[r, p1[1]] == Marker.Drawn) for r in range(p1[0]+1, p2[0]))
 
-    def paint_black(self, p1, p2):
+    def mark_connected(self, p1, p2):
         p1, p2 = (p1, p2) if (p1 < p2) else (p2, p1)
         if p1[0] == p2[0]:
             for c in range(p1[1]+1, p2[1]):
-                self.grid[p1[0], c] = 1.0
+                self.grid[p1[0], c] = Marker.Connected
+                self.rgb_grid[p1[0], c] = Colors.Black
         if p1[1] == p2[1]:
             for r in range(p1[0]+1, p2[0]):
-                self.grid[r, p1[1]] = 1.0
+                self.grid[r, p1[1]] = Marker.Connected
+                self.rgb_grid[r, p1[1]] = Colors.Black
 
     def calc_reward(self):
         reward = -1.0
         for p1, p2 in self.connections:
             if self.is_connected(p1, p2):
                 self.total_connected += 1
-                reward = self.max_steps
-                self.paint_black(p1, p2)
+                reward = 1.0
+                self.mark_connected(p1, p2)
                 break
         done = (self.total_connected == len(self.connections))
         return reward, done
@@ -160,6 +193,6 @@ class ConnectDotsEnv(gym.Env):
     def render(self, mode='human',close=False):
         print('Close: ', close)
         if mode == 'human' and not close:
-            plt.imshow(self.grid, cmap='gray_r')
+            plt.imshow(self.rgb_grid)
             plt.show()
             plt.savefig('connect_dots_{}.png'.format(self.rank))
