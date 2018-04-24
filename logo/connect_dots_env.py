@@ -12,7 +12,6 @@ from torchvision import transforms
 
 
 class TurtleActions(IntEnum):
-    FD0 = 0
     FD1 = 1
     LT1 = 2
     RT1 = 3
@@ -39,7 +38,7 @@ class ConnectDotsEnv(gym.Env):
     }
     GRID_SIZE = 28
 
-    def __init__(self, digit):
+    def __init__(self, digit, max_steps=500, min_steps=50, rank=0):
         self.digit = digit
         self.connections = all_connections[digit]
         self.target_dots = set()
@@ -53,9 +52,12 @@ class ConnectDotsEnv(gym.Env):
 
         self.nS = self.GRID_SIZE * self.GRID_SIZE
         self.action_space = spaces.Discrete(self.nA)
-        self.observation_space = spaces.Discrete(self.nS)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.GRID_SIZE, self.GRID_SIZE, 1))
         self.row = self.col = self.direction = 0
-
+        self.max_steps = max_steps
+        self.min_steps = min_steps
+        self.step_count = 0
+        self.rank = rank
         self.seed()
         self.reset()
 
@@ -87,6 +89,7 @@ class ConnectDotsEnv(gym.Env):
                        col=start[1],
                        direction=np.random.randint(0, self.nD),
                       )
+        self.step_count = 0
         return np.expand_dims(self.get_grid_bitmap(),axis=2)
 
     @property
@@ -104,11 +107,11 @@ class ConnectDotsEnv(gym.Env):
 
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
-
-        if action == TurtleActions.FD0:
-            row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
-            self.set_state(row=row_next, col=col_next)
-        elif action == TurtleActions.FD1:
+        self.step_count += 1
+        #if action == TurtleActions.FD0:
+        #    row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
+        #    self.set_state(row=row_next, col=col_next)
+        if action == TurtleActions.FD1:
             row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
             self.set_state(row=row_next, col=col_next, color=0.5)
         elif action == TurtleActions.RT1:
@@ -117,6 +120,8 @@ class ConnectDotsEnv(gym.Env):
             self.set_state(direction=(self.direction + 1) % self.nD)
 
         reward, done = self.calc_reward()
+        if self.step_count > self.max_steps:
+            done = True
         return np.expand_dims(self.get_grid_bitmap(),axis=2), reward, done, {}
 
     def get_grid_bitmap(self):
@@ -146,7 +151,7 @@ class ConnectDotsEnv(gym.Env):
         for p1, p2 in self.connections:
             if self.is_connected(p1, p2):
                 self.total_connected += 1
-                reward = 1.0
+                reward = self.max_steps
                 self.paint_black(p1, p2)
                 break
         done = (self.total_connected == len(self.connections))
@@ -157,3 +162,4 @@ class ConnectDotsEnv(gym.Env):
         if mode == 'human' and not close:
             plt.imshow(self.grid, cmap='gray_r')
             plt.show()
+            plt.savefig('connect_dots_{}.png'.format(self.rank))
