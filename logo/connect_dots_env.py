@@ -46,6 +46,9 @@ class Colors:
     White = 1.0
     Green = [0.0, 1.0, 0.0]
     Red = [1.0, 0.0, 0.0]
+    Blue = [0.0, 0.0, 1.0]
+    Yellow = [1.0, 1.0, 0.0]
+    Gray = [0.5, 0.5, 0.5]
 
 
 class ConnectDotsEnv(gym.Env):
@@ -70,6 +73,7 @@ class ConnectDotsEnv(gym.Env):
         self.action_space = spaces.Discrete(self.nA)
         self.observation_space = spaces.Discrete(self.nS)
         self.row = self.col = self.direction = 0
+        self.turtle_colors = [Colors.Blue, Colors.Green, Colors.Yellow, Colors.Red]
 
         self.seed()
         self.reset()
@@ -87,7 +91,7 @@ class ConnectDotsEnv(gym.Env):
         if draw is True:
             if self.grid[self.row, self.col] == Marker.Empty:
                 self.grid[self.row, self.col] = Marker.Drawn
-        self.rgb_grid[self.row, self.col] = Colors.Red
+        self.rgb_grid[self.row, self.col] = self.turtle_colors[self.direction]
 
     def update_rgb_grid(self):
         #for d in range(self.nD):
@@ -99,7 +103,7 @@ class ConnectDotsEnv(gym.Env):
         elif marker in (Marker.Target, Marker.Connected):
             color = Colors.Black
         elif marker == Marker.Drawn:
-            color = Colors.Green
+            color = Colors.Gray
         self.rgb_grid[r, c] = color
 
     def reset(self):
