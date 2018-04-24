@@ -25,7 +25,7 @@ class MnistTurtleEnv(gym.Env):
     }
     GRID_SIZE = 28
 
-    def __init__(self, digit):
+    def __init__(self, digit, max_steps=200, min_steps=50):
         self.digit = digit
         self.nD = 8  # number of directions
         # cell state 0: blank,  1: drawn black
@@ -43,6 +43,9 @@ class MnistTurtleEnv(gym.Env):
         self.preprocess = transforms.Compose([
                                transforms.Normalize((0.1307,), (0.3081,))
         ])
+        self.max_steps = max_steps
+        self.min_steps = min_steps
+        self.step_count = 0
         self.seed()
         self.reset()
 
@@ -68,6 +71,7 @@ class MnistTurtleEnv(gym.Env):
                        col=5, #np.random.randint(0, self.GRID_SIZE),
                        direction=0, #np.random.randint(0, 8),
                        color=0)
+        self.step_count = 0
         return np.expand_dims(self.get_grid_bitmap(),axis=2)
 
     @property
@@ -86,8 +90,9 @@ class MnistTurtleEnv(gym.Env):
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
-        reward = 0.0
+        reward = 0
         done = False
+        self.step_count +=1
         if action == TurtleActions.FD0:
             row_next, col_next = self._get_next_cell(self.row, self.col, self.direction)
             self.set_state(row=row_next, col=col_next)
@@ -99,6 +104,13 @@ class MnistTurtleEnv(gym.Env):
         elif action == TurtleActions.LT1:
             self.set_state(direction=(self.direction + 1) % self.nD)
         elif action == TurtleActions.STOP:
+            if self.step_count > self.min_steps:
+                reward, _ = self.calc_reward()
+                done = True
+            else:
+                reward = -1
+
+        if self.step_count > self.max_steps:
             reward, _ = self.calc_reward()
             done = True
 
@@ -128,7 +140,7 @@ class MnistTurtleEnv(gym.Env):
         '''
         return np.array(self.grid, dtype=np.float)
 
-    def calc_reward(self, reward_threshold=0.9):
+    def calc_reward(self, reward_threshold=0.8):
         '''
         Calculate reward from MNIST image for a given digit
         :return: Reward, done
@@ -140,9 +152,13 @@ class MnistTurtleEnv(gym.Env):
         logits = self.mnist_model(data)
         prob = F.softmax(logits,dim=1)
         p_digit = prob[0][self.digit].data[0]
-        if p_digit < reward_threshold:
-            p_digit = -1
+        #if p_digit < reward_threshold:
+        #    p_digit = -1
+        #else:
+        p_digit = 10 * p_digit
 
+        # add random noise for deep exploration?
+        #p_digit += np.random.normal(0, 1)
         done = any(prob[0][d].data[0] > 0.95 for d in range(10))
         return p_digit, done
 

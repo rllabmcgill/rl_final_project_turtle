@@ -59,7 +59,7 @@ class ConnectDotsEnv(gym.Env):
     }
     GRID_SIZE = 28
 
-    def __init__(self, digit, max_steps=500, min_steps=50, rank=0):
+    def __init__(self, digit, max_steps=2000, min_steps=50, rank=0):
         self.digit = digit
         self.connections = all_connections[digit]
         self.target_dots = set()
@@ -182,11 +182,11 @@ class ConnectDotsEnv(gym.Env):
                 self.rgb_grid[r, p1[1]] = Colors.Black
 
     def calc_reward(self):
-        reward = -1.0
+        reward = 0
         for p1, p2 in self.connections:
             if self.is_connected(p1, p2):
                 self.total_connected += 1
-                reward = 1.0
+                reward = 1
                 self.mark_connected(p1, p2)
                 break
         done = (self.total_connected == len(self.connections))
