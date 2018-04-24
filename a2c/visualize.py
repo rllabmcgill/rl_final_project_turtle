@@ -137,5 +137,5 @@ def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1)
 if __name__ == "__main__":
     from visdom import Visdom
     viz = Visdom()
-    p = visdom_plot(viz, None, '/tmp/gym/', 'MNIST Turtle', 'a2c', 3015280, bin_size=100, smooth=1)
+    p = visdom_plot(viz, None, '/tmp/gym/', 'MNIST Turtle', 'a2c', 1000000, bin_size=100, smooth=1)
     print(p)

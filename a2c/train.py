@@ -20,6 +20,8 @@ from a2c.kfac import KFACOptimizer
 from a2c.model import CNNPolicy
 from a2c.storage import RolloutStorage
 
+import pdb
+
 args = get_args()
 
 assert args.algo in ['a2c', 'ppo', 'acktr']
@@ -98,6 +100,7 @@ def main():
     # These variables are used to compute average rewards for all processes.
     episode_rewards = torch.zeros([args.num_processes, 1])
     final_rewards = torch.zeros([args.num_processes, 1])
+    episode_lengths = torch.zeros([args.num_processes, 1])
 
     if args.cuda:
         current_obs = current_obs.cuda()
@@ -123,6 +126,8 @@ def main():
             final_rewards *= masks
             final_rewards += (1 - masks) * episode_rewards
             episode_rewards *= masks
+            episode_lengths += torch.ones(episode_lengths.size())
+            episode_lengths *= masks
 
             if args.cuda:
                 masks = masks.cuda()
@@ -239,15 +244,16 @@ def main():
         if j % args.log_interval == 0:
             end = time.time()
             total_num_steps = (j + 1) * args.num_processes * args.num_steps
-            print("Updates {}, num timesteps {}, FPS {}, mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}, entropy {:.5f}, value loss {:.5f}, policy loss {:.5f}".
+            print("Updates {}, num timesteps {}, FPS {}, mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}, entropy {:.5f}, value loss {:.5f}, policy loss {:.5f}, Episode lengths {:.2f}".
                 format(j, total_num_steps,
                        int(total_num_steps / (end - start)),
                        final_rewards.mean(),
                        final_rewards.median(),
                        final_rewards.min(),
                        final_rewards.max(), dist_entropy.data[0],
-                       value_loss.data[0], action_loss.data[0]))
-        if args.vis and j % args.vis_interval == 0:
+                       value_loss.data[0], action_loss.data[0], episode_lengths.mean()))
+        if j > 0 and j % args.vis_interval == 0:
+            #pdb.set_trace()
             pass
             #try:
                 # Sometimes monitor doesn't properly flush the outputs

@@ -3,12 +3,15 @@ import os
 import gym
 from gym.spaces.box import Box
 from logo.mnist_turtle_env import MnistTurtleEnv
+from logo.connect_dots_env import ConnectDotsEnv
 from baselines import bench
 
 def make_env(env_name, seed=0, rank=0, digit=1, log_dir=None):
     def _thunk():
         if env_name == 'mnist_turle':
             env = MnistTurtleEnv(digit=digit)
+        elif env_name == 'connect_dots':
+            env = ConnectDotsEnv(digit=digit, rank=rank)
         else:
             raise NotImplementedError("env not implemented")
         env.seed(seed + rank)
