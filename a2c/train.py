@@ -3,11 +3,9 @@ import glob
 import os
 import time
 
-import gym
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
@@ -17,10 +15,8 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize
 from a2c.envs import make_env
 from a2c.kfac import KFACOptimizer
-from a2c.model import CNNPolicy
+from models.model import CNNPolicy
 from a2c.storage import RolloutStorage
-
-import pdb
 
 args = get_args()
 
