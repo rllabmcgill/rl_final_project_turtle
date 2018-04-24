@@ -12,6 +12,7 @@ from torchvision import transforms
 
 
 class TurtleActions(IntEnum):
+    FD0 = 0
     FD1 = 1
     LT1 = 2
     RT1 = 3
@@ -50,6 +51,7 @@ class Colors:
     Gray = [0.5, 0.5, 0.5]
     Cyan = [0.0, 1.0, 1.0]
 
+NUM_CHANNELS = 3
 
 class ConnectDotsEnv(gym.Env):
     metadata = {
@@ -66,12 +68,12 @@ class ConnectDotsEnv(gym.Env):
             self.target_dots.add(p2)
         self.nD = 4  # number of directions
         self.grid = np.zeros((self.GRID_SIZE, self.GRID_SIZE), dtype=np.int)
-        self.rgb_grid = np.ones((self.GRID_SIZE, self.GRID_SIZE, 3), dtype=np.float)
+        self.rgb_grid = np.ones((self.GRID_SIZE, self.GRID_SIZE, NUM_CHANNELS), dtype=np.float)
         self.nA = len(TurtleActions)
 
         self.nS = self.GRID_SIZE * self.GRID_SIZE
         self.action_space = spaces.Discrete(self.nA)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(self.GRID_SIZE, self.GRID_SIZE, 1))
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.GRID_SIZE, self.GRID_SIZE, NUM_CHANNELS))
         self.row = self.col = self.direction = 0
         self.max_steps = max_steps
         self.min_steps = min_steps
@@ -120,7 +122,7 @@ class ConnectDotsEnv(gym.Env):
         self.set_state(pos=random.sample(self.target_dots, 1)[0],
                        direction=np.random.randint(0, self.nD))
         self.step_count = 0
-        return np.expand_dims(self.get_grid_bitmap(),axis=2)
+        return self.get_grid_bitmap()
 
 
     @property
@@ -153,7 +155,7 @@ class ConnectDotsEnv(gym.Env):
         reward, done = self.calc_reward()
         if self.step_count > self.max_steps:
             done = True
-        return np.expand_dims(self.get_grid_bitmap(),axis=2), reward, done, {}
+        return self.get_grid_bitmap(), reward, done, {}
 
     def get_grid_bitmap(self):
         return np.array(self.rgb_grid, dtype=np.float)
