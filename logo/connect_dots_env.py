@@ -59,7 +59,7 @@ class ConnectDotsEnv(gym.Env):
     }
     GRID_SIZE = 28
 
-    def __init__(self, digit, max_steps=2000, min_steps=50, rank=0):
+    def __init__(self, digit, max_steps=3000, min_steps=50, rank=0):
         self.digit = digit
         self.connections = all_connections[digit]
         self.target_dots = set()
@@ -78,10 +78,8 @@ class ConnectDotsEnv(gym.Env):
         self.max_steps = max_steps
         self.min_steps = min_steps
         self.step_count = 0
-        self.rank = rank
         self.turtle_colors = [Colors.Blue, Colors.Green, Colors.Yellow, Colors.Red]
-        self.seed()
-        self.reset()
+        self.rank = rank
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -119,8 +117,10 @@ class ConnectDotsEnv(gym.Env):
             self.grid[r, c] = Marker.Target
             self.rgb_grid[r, c] = Colors.Black
 
-        self.set_state(pos=random.sample(self.target_dots, 1)[0],
-                       direction=np.random.randint(0, self.nD))
+        tdots = list(self.target_dots)
+        rand_pos = self.np_random.randint(0,len(tdots))
+        self.set_state(pos=tdots[rand_pos],
+                       direction=self.np_random.randint(0, self.nD))
         self.step_count = 0
         return self.get_grid_bitmap()
 
