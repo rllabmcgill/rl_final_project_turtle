@@ -18,8 +18,17 @@ class TurtleActions(IntEnum):
     RT1 = 3
 
 all_connections = {
-    3: {((),()),
-        ((),()),
+    3: {((6,6),(6,11)),  # Top lines
+        ((6,11),(6,16)),
+        ((6,16),(6,21)),
+        ((6,21),(11,21)),  # Right lines
+        ((11,21),(16,21)),
+        ((16,21),(21,21)),
+        ((21,21),(21,16)),  # Bottom lines
+        ((21,16),(21,11)),
+        ((21,11),(21,6)),
+        ((13,11),(13,16)),  # Middle Lines
+        ((13,16),(13,21))
     }
 }
 
@@ -40,11 +49,11 @@ class ConnectDotsEnv(gym.Env):
         # cell state 0: blank,  1: target dots, 0.5 turtle drawing
         self.grid = np.asarray([[0]*self.GRID_SIZE]*self.GRID_SIZE, dtype=np.float)
         self.nA = len(TurtleActions)
-        # row, col, direction, cell color(0 or 1)
+
         self.nS = self.GRID_SIZE * self.GRID_SIZE
         self.action_space = spaces.Discrete(self.nA)
         self.observation_space = spaces.Discrete(self.nS)
-        self.row = self.col = self.direction
+        self.row = self.col = self.direction = 0
 
         self.seed()
         self.reset()
@@ -135,7 +144,6 @@ class ConnectDotsEnv(gym.Env):
                 break
         done = (self.total_connected == len(self.connections))
         return reward, done
-
 
     def render(self, mode='human',close=False):
         print('Close: ', close)
