@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
+import imageio
 from utee import selector
 import torch
 import torch.nn.functional as F
@@ -87,6 +88,8 @@ class ConnectDotsEnv(gym.Env):
         self.patience_ct = patience
         self.use_patience = use_patience
         self.last_reward = 0
+        self.episode_grids = []
+        self.num_episodes = 0
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -131,6 +134,10 @@ class ConnectDotsEnv(gym.Env):
         self.step_count = 0
         self.patience_ct = self.patience
         self.last_reward = 0
+        self.num_episodes +=1
+        #if self.num_episodes % 10 == 0:
+        #    self.render_gif()
+        #    self.episode_grids = []
         return self.get_grid_bitmap()
 
 
@@ -162,6 +169,7 @@ class ConnectDotsEnv(gym.Env):
             self.set_state(direction=(self.direction + 1) % self.nD)
 
         reward, done = self.calc_reward()
+        # self.episode_grids.append(self.rgb_grid)
         if self.use_patience:
             if reward == self.last_reward:
                 self.patience_ct -= 1
@@ -201,11 +209,12 @@ class ConnectDotsEnv(gym.Env):
                 self.rgb_grid[r, p1[1]] = Colors.Black
 
     def calc_reward(self):
-        reward = 0
+        reward = -0.1
         for p1, p2 in self.connections:
             if self.is_connected(p1, p2):
                 self.total_connected += 1
-                reward = 1
+                reward = self.total_connected
+                reward += self.np_random.normal(0.1, 0.1)
                 self.mark_connected(p1, p2)
                 break
         done = (self.total_connected == len(self.connections))
@@ -217,3 +226,17 @@ class ConnectDotsEnv(gym.Env):
             plt.imshow(self.rgb_grid)
             plt.show()
             plt.savefig('connect_dots_{}.png'.format(self.rank))
+
+    def render_gif(self):
+        print('rendering_gif')
+        with imageio.get_writer('connect_dots_{}.gif'.format(self.rank), mode='I', fps=8) as writer:
+            for i,grid in enumerate(self.episode_grids):
+                if i % 124 == 0:
+                    plt.imshow(grid)
+                    # plt.show()
+                    fig = plt.gcf()
+                    fig.canvas.draw()
+                    data = fig.canvas.tostring_rgb()
+                    rows, cols = fig.canvas.get_width_height()
+                    imarray = np.fromstring(data, dtype=np.uint8).reshape(cols, rows, 3)
+                    writer.append_data(imarray)
