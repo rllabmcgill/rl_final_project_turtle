@@ -3,7 +3,10 @@ import gym
 import numpy as np, random
 from gym import spaces
 from gym.utils import seeding
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from utee import selector
 import torch
 import torch.nn.functional as F
@@ -59,7 +62,7 @@ class ConnectDotsEnv(gym.Env):
     }
     GRID_SIZE = 28
 
-    def __init__(self, digit, max_steps=3000, min_steps=50, rank=0):
+    def __init__(self, digit, max_steps=3000, min_steps=50, rank=0, patience=100, use_patience=False):
         self.digit = digit
         self.connections = all_connections[digit]
         self.target_dots = set()
@@ -80,6 +83,10 @@ class ConnectDotsEnv(gym.Env):
         self.step_count = 0
         self.turtle_colors = [Colors.Blue, Colors.Green, Colors.Yellow, Colors.Red]
         self.rank = rank
+        self.patience = patience
+        self.patience_ct = patience
+        self.use_patience = use_patience
+        self.last_reward = 0
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -122,6 +129,8 @@ class ConnectDotsEnv(gym.Env):
         self.set_state(pos=tdots[rand_pos],
                        direction=self.np_random.randint(0, self.nD))
         self.step_count = 0
+        self.patience_ct = self.patience
+        self.last_reward = 0
         return self.get_grid_bitmap()
 
 
@@ -153,8 +162,18 @@ class ConnectDotsEnv(gym.Env):
             self.set_state(direction=(self.direction + 1) % self.nD)
 
         reward, done = self.calc_reward()
+        if self.use_patience:
+            if reward == self.last_reward:
+                self.patience_ct -= 1
+            else:
+                self.patience_ct = self.patience
+            self.last_reward = reward
+            if self.patience_ct == 0:
+                done = True
         if self.step_count > self.max_steps:
             done = True
+        if done:
+            self.render(mode='human')
         return self.get_grid_bitmap(), reward, done, {}
 
     def get_grid_bitmap(self):

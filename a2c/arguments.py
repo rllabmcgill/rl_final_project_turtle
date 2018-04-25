@@ -62,6 +62,8 @@ def get_args():
                         help='disables visdom visualization')
     parser.add_argument('--port', type=int, default=8097,
                         help='port to run the server on (default: 8097)')
+    parser.add_argument('--resume', action='store_true', default=False, help='Resume from last saved checkpoint')
+    parser.add_argument('--use_patience', action='store_true', default=False, help='Use patience')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

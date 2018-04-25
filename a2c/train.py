@@ -46,7 +46,7 @@ def main():
 
     os.environ['OMP_NUM_THREADS'] = '1'
 
-    envs = [make_env(args.env_name, seed=args.seed, digit=args.digit, rank=i, log_dir=args.log_dir)
+    envs = [make_env(args.env_name, seed=args.seed, digit=args.digit, rank=i, log_dir=args.log_dir, use_patience=args.use_patience)
                 for i in range(args.num_processes)]
 
     if args.num_processes > 1:
@@ -249,7 +249,6 @@ def main():
                        final_rewards.max(), dist_entropy.data[0],
                        value_loss.data[0], action_loss.data[0], episode_lengths.mean()))
         if j > 0 and j % args.vis_interval == 0:
-            #pdb.set_trace()
             pass
             #try:
                 # Sometimes monitor doesn't properly flush the outputs
