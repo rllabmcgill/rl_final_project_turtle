@@ -8,11 +8,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 import imageio
-from utee import selector
-import torch
-import torch.nn.functional as F
-from torch.autograd import Variable
-from torchvision import transforms
 
 
 class TurtleActions(IntEnum):
@@ -63,7 +58,7 @@ class ConnectDotsEnv(gym.Env):
     }
     GRID_SIZE = 28
 
-    def __init__(self, digit, max_steps=3000, min_steps=50, rank=0, patience=100, use_patience=False):
+    def __init__(self, digit, max_steps=3000, min_steps=50, rank=0, patience=100, use_patience=False, save_grid_on_done=True):
         self.digit = digit
         self.connections = all_connections[digit]
         self.target_dots = set()
@@ -90,6 +85,7 @@ class ConnectDotsEnv(gym.Env):
         self.last_reward = 0
         self.episode_grids = []
         self.num_episodes = 0
+        self.save_grid_on_done = save_grid_on_done
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -180,7 +176,7 @@ class ConnectDotsEnv(gym.Env):
                 done = True
         if self.step_count > self.max_steps:
             done = True
-        if done:
+        if done and self.save_grid_on_done:
             self.render(mode='human')
         return self.get_grid_bitmap(), reward, done, {}
 
