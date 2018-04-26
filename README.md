@@ -8,6 +8,13 @@ Turtle Learning Environment (TLE) is a minimalistic connect-the-dots environment
 
 Ideally, we would like to visualize this behaviour, which also describes the nuances of our environment.
 
+![ideal_turtle](https://user-images.githubusercontent.com/5122822/39320406-f61852e2-4951-11e8-8769-07bd4fa9cf43.gif)
+
+### Properties:
+
+- Actions: FD0, FD1, RT, LT
+- Color cyan for drawn path, black when a path is connected, RGBY for the directions in turtle head
+
 ## Authors
 
 Deven Parekh & Koustuv Sinha
