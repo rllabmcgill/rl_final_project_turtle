@@ -58,10 +58,12 @@ class ConnectDotsEnv(gym.Env):
     }
     GRID_SIZE = 28
 
-    def __init__(self, digit, max_steps=3000, min_steps=50, rank=0, patience=100, use_patience=False, save_grid_on_done=True):
+    def __init__(self, digit, max_steps=3000, min_steps=50, rank=0, patience=100, use_patience=False,
+            save_grid_on_done=True, reward_type='negative'):
         self.digit = digit
         self.connections = all_connections[digit]
         self.target_dots = set()
+        self.connected_dots = set()
         for p1, p2 in self.connections:
             self.target_dots.add(p1)
             self.target_dots.add(p2)
@@ -86,6 +88,7 @@ class ConnectDotsEnv(gym.Env):
         self.episode_grids = []
         self.num_episodes = 0
         self.save_grid_on_done = save_grid_on_done
+        self.reward_type = reward_type
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -123,6 +126,7 @@ class ConnectDotsEnv(gym.Env):
             self.grid[r, c] = Marker.Target
             self.rgb_grid[r, c] = Colors.Black
 
+        self.connected_dots = set()
         tdots = list(self.target_dots)
         rand_pos = self.np_random.randint(0,len(tdots))
         self.set_state(pos=tdots[rand_pos],
@@ -164,7 +168,7 @@ class ConnectDotsEnv(gym.Env):
         elif action == TurtleActions.LT1:
             self.set_state(direction=(self.direction + 1) % self.nD)
 
-        reward, done = self.calc_reward()
+        reward, done = self.calc_reward(action)
         # self.episode_grids.append(self.rgb_grid)
         if self.use_patience:
             if reward == self.last_reward:
@@ -194,6 +198,8 @@ class ConnectDotsEnv(gym.Env):
             return all((self.grid[r, p1[1]] == Marker.Drawn) for r in range(p1[0]+1, p2[0]))
 
     def mark_connected(self, p1, p2):
+        self.connected_dots.add(p1)
+        self.connected_dots.add(p2)
         p1, p2 = (p1, p2) if (p1 < p2) else (p2, p1)
         if p1[0] == p2[0]:
             for c in range(p1[1]+1, p2[1]):
@@ -204,12 +210,23 @@ class ConnectDotsEnv(gym.Env):
                 self.grid[r, p1[1]] = Marker.Connected
                 self.rgb_grid[r, p1[1]] = Colors.Black
 
-    def calc_reward(self):
-        reward = -0.1
+    def calc_reward(self, action):
+        if self.reward_type == 'zero':
+            reward = 0.0
+        else:
+            reward = -0.1
+
+        tpos = (self.row, self.col)
+        if self.reward_type == 'prefer_dots':
+            for p in self.target_dots:
+                if tpos == p and p not in self.connected_dots and action in (TurtleActions.FD0, TurtleActions.FD1):
+                    reward = 0.5
         for p1, p2 in self.connections:
             if self.is_connected(p1, p2):
                 self.total_connected += 1
                 reward = self.total_connected
+                if self.reward_type == 'prefer_dots':
+                    reward *= 10.0
                 reward += self.np_random.normal(0.1, 0.1)
                 self.mark_connected(p1, p2)
                 break

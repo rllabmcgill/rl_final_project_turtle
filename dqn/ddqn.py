@@ -1,3 +1,5 @@
+import sys, os, logging
+sys.path.append('%s'%os.path.abspath('/home/ndg/users/dparek/rl_final_project_turtle'))
 from keras.models import Sequential
 from keras.layers import Conv2D, Dense, Flatten  # , MaxPooling2D
 from keras.optimizers import Adam
@@ -9,6 +11,15 @@ from keras import backend as K
 from logo.connect_dots_env import ConnectDotsEnv
 
 
+def get_logger(stream=sys.stdout, name=''):
+    logging.basicConfig(stream=stream, level=logging.INFO,
+                        format='%(asctime)s | %(threadName)10s | %(levelname)s | ' +
+                        '%(module)s:%(lineno)d | %(message)s')
+    return logging.getLogger(name)
+
+log = get_logger()
+
+
 class DQNAgent:
     def __init__(self, action_size, input_shape):
         self.action_size = action_size
@@ -18,10 +29,10 @@ class DQNAgent:
         self.epsilon = 1.0  # exploration rate
         self.epsilon_final = 0.0001
         self.epsilon_init = 1.0
-        self.observe_until = 5000
+        self.observe_until = 50
         self.explore_until = 50000
         self.learning_rate = 0.001
-        self.update_target_every = 2000
+        self.update_target_every = 100
         self.model = self._build_cnn()
         self.target_model = self._build_cnn()
         self.update_target_model()
@@ -32,8 +43,8 @@ class DQNAgent:
 
     def _build_cnn(self):
         model = Sequential()
-        model.add(Conv2D(16, kernel_size=(5, 5), stride=2, activation='relu', input_shape=self.input_shape))
-        model.add(Conv2D(32, kernel_size=(3, 3), stride=1, activation='relu'))
+        model.add(Conv2D(16, kernel_size=(5, 5), strides=2, activation='relu', input_shape=self.input_shape))
+        model.add(Conv2D(32, kernel_size=(3, 3), strides=1, activation='relu'))
         #model.add(MaxPooling2D(pool_size=(2, 2)))
         #model.add(Dropout(0.20))
         model.add(Flatten())
@@ -88,8 +99,10 @@ def train_agent(env, num_episodes=1000, batch_size=32, steps_per_episode=500):
     input_shape = (env.GRID_SIZE, env.GRID_SIZE, 3)
     agent = DQNAgent(action_size, input_shape)
     # agent.load("./trained_models/logo_mnist_ddqn.h5")
-    all_rewards, all_timesteps, all_grids = [], [], []
-    best_reward, best_grids, best_episode = -1e8, [], 0
+    all_rewards, all_timesteps, all_connected = [], [], []
+    best_grids = [0, -1e8, []]
+    grids_11 = [0, -1e8, []]
+    grids_12 = [0, -1e8, []]
 
     for i_episode in range(num_episodes):
         state = env.reset()
@@ -108,29 +121,41 @@ def train_agent(env, num_episodes=1000, batch_size=32, steps_per_episode=500):
 
         all_rewards.append(t_reward)
         all_timesteps.append(t_step)
+        all_connected.append(env.total_connected)
 
-        if t_reward > best_reward:
-            best_reward = t_reward
-            best_grids = t_grids
-            best_episode = i_episode
+        if t_reward > best_grids[1]:
+            best_grids = (i_episode, t_reward, t_grids)
 
-        if len(agent.memory) > 32:
+        if env.total_connected == 11:
+            grids_11 = (i_episode, t_reward, t_grids)
+
+        if env.total_connected == 12:
+            grids_12 = (i_episode, t_reward, t_grids)
+
+        if len(agent.memory) > batch_size:
             agent.replay(batch_size, i_episode)
 
+        if i_episode >= num_episodes-1 or i_episode % 5000 == 0:
+            with open('./saved_stats/connect_dots_dqn_gpu_grids_preferdots_%s.pkl' % i_episode, 'wb') as fout:
+                pickle.dump({ 'best_grids': best_grids,
+                              'grids_11': grids_11,
+                              'grids_12': grids_12,
+                              'current_grids': t_grids
+                            }, fout)
+
         if i_episode % 10 == 0:
-            print("episode: %s/%s, steps: %s, eps: %.4f, reward: %.4f" %
-                  (i_episode, num_episodes, t_step, agent.epsilon, t_reward))
-            all_grids.append((i_episode, env.get_grid_bitmap()))
+            log.info("episode: %s/%s, steps: %s, eps: %.4f, reward: %.4f, connected: %s" %
+                    (i_episode, num_episodes, t_step, agent.epsilon, t_reward, env.total_connected))
 
         if i_episode >= num_episodes-1 or i_episode % 2000 == 0:
-            agent.save("./trained_models/connect_dots_dqn.h5")
-            with open('./saved_stats/connect_dots_dqn.pkl', 'wb') as fout:
+            agent.save("./trained_models/connect_dots_dqn_gpu_preferdots.h5")
+            with open('./saved_stats/connect_dots_dqn_gpu_stat_preferdots.pkl', 'wb') as fout:
                 pickle.dump({'rewards': all_rewards, 'timesteps': all_timesteps,
-                             'best_grids': (best_episode, best_reward, best_grids),
-                             'all_grids': all_grids},
+                             'all_connected': all_connected},
                             fout)
 
 
 if __name__ == '__main__':
-    turtle_env = ConnectDotsEnv(digit=3, save_grid_on_done=False)
-    train_agent(turtle_env, num_episodes=100000, steps_per_episode=3000, batch_size=3200)
+    turtle_env = ConnectDotsEnv(digit=3, save_grid_on_done=False, max_steps=3000, reward_type='prefer_dots')
+    turtle_env.seed()
+    train_agent(turtle_env, num_episodes=51000, steps_per_episode=3000, batch_size=32)
